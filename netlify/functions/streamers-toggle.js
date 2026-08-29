@@ -1,10 +1,7 @@
-// POST { id, live, adminToken, viewers? } -> { ok: true }
-// Flips a streamer's live/offline state (and optionally its viewer
-// count) from the admin panel. Admin only.
+const { adapt } = require("../lib/http");
+const { json, sb, verifyAdminToken } = require("../lib/shared");
 
-const { json, sb, verifyAdminToken } = require("./lib/shared");
-
-exports.handler = async function (event) {
+async function handler(event) {
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
 
   let data;
@@ -23,12 +20,11 @@ exports.handler = async function (event) {
   if (!patch.live) patch.viewers = null;
 
   try {
-    await sb(`streamers?id=eq.${encodeURIComponent(data.id)}`, {
-      method: "PATCH",
-      body: JSON.stringify(patch),
-    });
+    await sb(`streamers?id=eq.${encodeURIComponent(data.id)}`, { method: "PATCH", body: JSON.stringify(patch) });
     return json(200, { ok: true });
   } catch (err) {
     return json(502, { error: "Could not update streamer", detail: String(err) });
   }
-};
+}
+
+module.exports = adapt(handler);
