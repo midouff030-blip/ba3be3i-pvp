@@ -1,5 +1,7 @@
-// POST { id, adminToken } -> { ok: true }
-// Closes a ticket. Admin only.
+// POST { id, adminToken, reason? } -> { ok: true }
+// Closes a ticket. Admin only. The optional reason is stored on the
+// ticket (close_reason column) and shown to the player + logged to
+// Discord, so everyone can see why it was closed.
 
 const { json, sb, verifyAdminToken, postDiscord } = require("./lib/shared");
 
@@ -17,10 +19,16 @@ exports.handler = async function (event) {
   if (!session) return json(401, { error: "Invalid or expired admin session" });
   if (!data.id) return json(400, { error: "Missing id" });
 
+  const reason = (data.reason || "").slice(0, 500);
+
   try {
     await sb(`tickets?id=eq.${encodeURIComponent(data.id)}`, {
       method: "PATCH",
-      body: JSON.stringify({ status: "closed", updated_at: new Date().toISOString() }),
+      body: JSON.stringify({
+        status: "closed",
+        close_reason: reason || null,
+        updated_at: new Date().toISOString(),
+      }),
     });
 
     postDiscord({
@@ -29,6 +37,7 @@ exports.handler = async function (event) {
       fields: [
         { name: "Closed by", value: session.name, inline: true },
         { name: "Ticket", value: data.id, inline: true },
+        { name: "Reason", value: reason || "—" },
       ],
       timestamp: new Date().toISOString(),
     });
