@@ -4,7 +4,7 @@
 // Admin replies must include a valid adminToken from admin-login.
 // A message needs text OR an attachment (or both) — not neither.
 
-const { json, sb, verifyAdminToken, postDiscord, uploadAttachment } = require("./lib/shared");
+const { json, sb, verifyAdminToken, postDiscord, uploadAttachment, getDiscordUser } = require("./lib/shared");
 
 exports.handler = async function (event) {
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
@@ -24,11 +24,16 @@ exports.handler = async function (event) {
   if (!id || (!text && !hasAttachment)) return json(400, { error: "Missing id, or an empty message with no attachment" });
 
   let senderName = "Player";
+  let avatarUrl = null;
 
   if (sender === "admin") {
     const session = verifyAdminToken(data.adminToken);
     if (!session) return json(401, { error: "Invalid or expired admin session" });
-    senderName = session.name;
+    // Real Discord name/avatar (falls back to the ADMIN_ACCOUNTS_JSON name
+    // + client-side colored-initials if no discordId / bot token set).
+    const discordUser = await getDiscordUser(session.discordId);
+    senderName = (discordUser && discordUser.name) || session.name;
+    avatarUrl = discordUser ? discordUser.avatarUrl : null;
   }
 
   try {
@@ -56,6 +61,7 @@ exports.handler = async function (event) {
         body: text,
         attachment_url: attachmentUrl,
         attachment_type: hasAttachment ? data.attachmentType : null,
+        avatar_url: avatarUrl,
       }),
     });
 
