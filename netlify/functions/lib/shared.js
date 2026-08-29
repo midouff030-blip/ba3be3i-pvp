@@ -1,6 +1,6 @@
 // Shared helpers for the ticket system functions.
-// Not a function itself — Netlify only auto-publishes top-level files
-// in netlify/functions/, so this nested lib/ file stays a plain module.
+// Not a function itself — lives outside api/ so Vercel never treats it as
+// its own route, just a plain importable module.
 
 const crypto = require("crypto");
 
@@ -11,7 +11,10 @@ const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL;
 const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN; // "Bot" tab of the Discord app — used only to look up a user's real avatar/name by their Discord ID, never posts/joins anything
 const KICK_CLIENT_ID = process.env.KICK_CLIENT_ID;
 const KICK_CLIENT_SECRET = process.env.KICK_CLIENT_SECRET;
-const SITE_URL = process.env.URL || ""; // Netlify sets this automatically at runtime
+// Vercel sets VERCEL_URL automatically (no https://, and it's the per-deploy
+// URL) — SITE_URL lets you override with your real domain; falls back to
+// the auto one so links still work even if you forget to set it.
+const SITE_URL = process.env.SITE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
 
 function json(statusCode, data) {
   return {
@@ -54,8 +57,8 @@ function genTicketId(len) {
 }
 
 // --- Admin accounts (server-side only — never sent to the browser) ----
-// Set ADMIN_ACCOUNTS_JSON in Netlify env vars, e.g.:
-// [{"user":"admin","pass":"changeme","name":"Admin"}]
+// Set ADMIN_ACCOUNTS_JSON in env vars, e.g.:
+// [{"user":"admin","pass":"changeme","name":"Admin","discordId":"..."}]
 function getAdminAccounts() {
   try {
     return JSON.parse(process.env.ADMIN_ACCOUNTS_JSON || "[]");
@@ -91,19 +94,14 @@ function verifyAdminToken(token) {
   try {
     const payload = JSON.parse(Buffer.from(b64, "base64url").toString());
     if (!payload.exp || payload.exp < Date.now()) return null;
-    return payload; // { name, exp }
+    return payload; // { user, name, discordId, exp }
   } catch (err) {
     return null;
   }
 }
 
 // --- Supabase Storage upload (for chat attachments) --------------------
-// Uploads a base64 file to the "ticket-attachments" bucket (must exist —
-// see supabase-schema.sql) and returns its public URL. The bucket is
-// public, so the URL works directly with no signing. Uses the service
-// key, so this bypasses RLS entirely (safe: only our own functions call
-// this, never the browser directly).
-const MAX_ATTACHMENT_BYTES = 3.5 * 1024 * 1024; // raw file size cap — Netlify Functions cap the whole request around 6MB, and base64 inflates size ~33%
+const MAX_ATTACHMENT_BYTES = 3.5 * 1024 * 1024;
 
 async function uploadAttachment(ticketId, base64Data, contentType, fileName) {
   if (!SUPABASE_URL || !SUPABASE_KEY) {
@@ -133,19 +131,12 @@ async function uploadAttachment(ticketId, base64Data, contentType, fileName) {
 }
 
 // --- Discord real user lookup (bot token) — real avatar + real name ----
-// Looks a Discord user up by their ID using a Bot Token (Discord Developer
-// Portal -> your app -> Bot -> Reset Token). This is a lookup only: the
-// bot never joins/posts anywhere, it just reads public profile info
-// (username + avatar) for admins who've put their Discord ID in
-// ADMIN_ACCOUNTS_JSON. Best-effort: if DISCORD_BOT_TOKEN isn't set, or the
-// lookup fails, callers fall back to the plain name/colored-initials
-// avatar — never breaks the actual feature (chat/login) over it.
-const discordUserCache = new Map(); // discordId -> { data, expires }
-const DISCORD_CACHE_MS = 10 * 60 * 1000; // 10 min — avoids hammering Discord's API on every reply
+const discordUserCache = new Map();
+const DISCORD_CACHE_MS = 10 * 60 * 1000;
 
 function defaultAvatarUrl(discordId) {
   try {
-    const idx = Number((BigInt(discordId) >> 22n) % 6n); // Discord's own "no avatar set" formula
+    const idx = Number((BigInt(discordId) >> 22n) % 6n);
     return `https://cdn.discordapp.com/embed/avatars/${idx}.png`;
   } catch (err) {
     return "https://cdn.discordapp.com/embed/avatars/0.png";
@@ -158,7 +149,7 @@ async function getDiscordUser(discordId) {
   const cached = discordUserCache.get(discordId);
   if (cached && cached.expires > Date.now()) return cached.data;
 
-  if (!DISCORD_BOT_TOKEN) return null; // not configured yet — caller falls back gracefully
+  if (!DISCORD_BOT_TOKEN) return null;
 
   try {
     const res = await fetch(`https://discord.com/api/v10/users/${discordId}`, {
@@ -177,17 +168,12 @@ async function getDiscordUser(discordId) {
   }
 }
 
-// --- Kick real live-status lookup (App Access Token, no per-streamer
-// login needed) ----------------------------------------------------------
-// Uses Kick's official Dev API (dev.kick.com) with the Client Credentials
-// grant — a "server-to-server" app token that can read ANY channel's public
-// live status without that streamer individually authorizing anything.
-// Docs: https://github.com/KickEngineering/KickDevDocs
-let kickAppToken = null; // { token, expires } — cached across warm invocations
+// --- Kick real live-status lookup (App Access Token) --------------------
+let kickAppToken = null;
 
 async function getKickAppToken() {
   if (kickAppToken && kickAppToken.expires > Date.now()) return kickAppToken.token;
-  if (!KICK_CLIENT_ID || !KICK_CLIENT_SECRET) return null; // not configured yet
+  if (!KICK_CLIENT_ID || !KICK_CLIENT_SECRET) return null;
 
   try {
     const res = await fetch("https://id.kick.com/oauth/token", {
@@ -204,7 +190,7 @@ async function getKickAppToken() {
     if (!data.access_token) return null;
     kickAppToken = {
       token: data.access_token,
-      expires: Date.now() + (Number(data.expires_in || 3600) - 60) * 1000, // refresh a minute early
+      expires: Date.now() + (Number(data.expires_in || 3600) - 60) * 1000,
     };
     return kickAppToken.token;
   } catch (err) {
@@ -212,9 +198,6 @@ async function getKickAppToken() {
   }
 }
 
-// Pulls the channel slug out of a Kick URL, e.g.
-// "https://kick.com/9baya701" -> "9baya701". The `streamers` table stores
-// the full URL (as before); this just reuses it instead of a new column.
 function kickSlugFromUrl(url) {
   try {
     const clean = String(url || "").trim().replace(/\/+$/, "");
@@ -225,13 +208,9 @@ function kickSlugFromUrl(url) {
   }
 }
 
-const kickStatusCache = new Map(); // slug -> { data, expires }
-const KICK_STATUS_CACHE_MS = 30 * 1000; // 30s — smooths out bursts of page loads
+const kickStatusCache = new Map();
+const KICK_STATUS_CACHE_MS = 30 * 1000;
 
-// Looks up live/viewer status for up to 50 Kick slugs in ONE request.
-// Returns { [lowercaseSlug]: { isLive, viewers } }. Best-effort: returns {}
-// (never throws) if KICK_CLIENT_ID/SECRET aren't set or the API call fails,
-// so callers can fall back to whatever's already stored instead of breaking.
 async function getKickChannelsStatus(slugs) {
   const wanted = Array.from(new Set((slugs || []).filter(Boolean).map((s) => s.toLowerCase())));
   if (!wanted.length) return {};
@@ -247,7 +226,7 @@ async function getKickChannelsStatus(slugs) {
   if (!toFetch.length) return out;
 
   const token = await getKickAppToken();
-  if (!token) return out; // not configured — return whatever was cached (maybe nothing)
+  if (!token) return out;
 
   try {
     const params = new URLSearchParams();
@@ -275,16 +254,6 @@ async function getKickChannelsStatus(slugs) {
 }
 
 // --- Discord DM (bot token) — notifies a player when their ticket closes
-// ------------------------------------------------------------------------
-// Sends a direct message to a Discord user by their ID, using the same
-// Bot Token as getDiscordUser(). IMPORTANT limitation (Discord anti-spam
-// rule, not a bug here): a bot can only DM a user if they share at least
-// one server with the bot — so the bot must actually be INVITED/added as a
-// member of your Discord server (Developer Portal -> OAuth2 -> URL
-// Generator -> check "bot" scope -> open the generated link -> add it to
-// your server), not just have a token. Best-effort: never throws, returns
-// true/false so callers can ignore failures (a closed ticket still closes
-// even if the DM couldn't be sent).
 async function sendDiscordDM(discordId, content) {
   if (!discordId || !DISCORD_BOT_TOKEN) return false;
   try {
