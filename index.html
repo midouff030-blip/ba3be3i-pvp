@@ -343,6 +343,8 @@
   .sa-toggle{ font-family:"IBM Plex Mono"; font-size:0.66rem; letter-spacing:0.06em; text-transform:uppercase; padding:4px 10px; border:1px solid var(--line-bright); background:none; color:var(--muted); cursor:pointer; transition:border-color .15s ease, color .15s ease; }
   .sa-toggle[data-live="true"]{ color:var(--green-signal); border-color:var(--green-mid); }
   .sa-toggle:hover{ border-color:var(--green-signal); color:var(--green-signal); }
+  .sa-toggle:disabled{ cursor:default; opacity:0.85; }
+  .sa-toggle:disabled:hover{ border-color:var(--line-bright); color:inherit; }
   .ticket-form{ display:flex; flex-direction:column; gap:16px; background:var(--surface-2); border:1px solid var(--line-bright); padding:28px; }
   .form-row{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
   .form-field{ display:flex; flex-direction:column; }
@@ -746,6 +748,11 @@
             </div>
           </div>
           <div class="form-field">
+            <label for="tk-discordid">Discord ID (optional)</label>
+            <input id="tk-discordid" name="discordId" type="text" placeholder="123456789012345678" inputmode="numeric" pattern="[0-9]{15,25}">
+            <p class="form-note" style="margin-top:4px;">Bech twusslek notification (DM) fi Discord wa9t ysakar ticket-ek + il raison. Kifeh ta5ouha: Discord → Settings → Advanced → Developer Mode (ON) → click right 3la isimek (fou9) → Copy User ID.</p>
+          </div>
+          <div class="form-field">
             <label for="tk-category">Category</label>
             <select id="tk-category" name="category">
               <option>Bug report</option>
@@ -1037,14 +1044,14 @@
   // see the "REAL ticket system" block further down for the full
   // ticket/chat logic that uses this.
   var API = {
-    create: "/.netlify/functions/ticket-create",
-    get: "/.netlify/functions/ticket-get",
-    reply: "/.netlify/functions/ticket-reply",
-    close: "/.netlify/functions/ticket-close",
-    adminLogin: "/.netlify/functions/admin-login",
-    adminList: "/.netlify/functions/admin-tickets-list",
-    streamersList: "/.netlify/functions/streamers-list",
-    streamersToggle: "/.netlify/functions/streamers-toggle",
+    create: "/api/ticket-create",
+    get: "/api/ticket-get",
+    reply: "/api/ticket-reply",
+    close: "/api/ticket-close",
+    adminLogin: "/api/admin-login",
+    adminList: "/api/admin-tickets-list",
+    streamersList: "/api/streamers-list",
+    streamersToggle: "/api/streamers-toggle",
   };
 
   var toast = document.getElementById("toast");
@@ -1167,7 +1174,7 @@
      1. Set SERVER_JOIN_CODE to your Cfx.re join code (from
         cfx.re/join/XXXXXX or your txAdmin panel).
      2. This first tries a same-origin Netlify Function
-        (/.netlify/functions/server-status) included in this
+        (/api/server-status) included in this
         project — it avoids any CORS issue and works reliably.
         Deploy it via the Netlify CLI or a Git-connected site for
         functions to go live (plain drag-and-drop of the folder in
@@ -1247,7 +1254,7 @@
       setUnavailable("Set SERVER_JOIN_CODE in the script to show real status.");
       return;
     }
-    fetch("/.netlify/functions/server-status?code=" + encodeURIComponent(SERVER_JOIN_CODE))
+    fetch("/api/server-status?code=" + encodeURIComponent(SERVER_JOIN_CODE))
       .then(function(res){ if (!res.ok) throw new Error("function error"); return res.json(); })
       .then(parseFivemPayload)
       .catch(function(){
@@ -1447,19 +1454,27 @@
       .then(function(data){
         asList.innerHTML = "";
         (data.streamers || []).forEach(function(s){
+          var isKick = (s.platform || "").toLowerCase() === "kick";
           var row = document.createElement("div");
           row.className = "streamer-admin-row";
           row.innerHTML =
             '<span class="sa-name">' + s.name + ' <span class="sa-plat">' + s.platform + '</span></span>' +
-            '<button type="button" class="sa-toggle" data-live="' + (s.live ? "true" : "false") + '">' + (s.live ? "Live" : "Offline") + '</button>';
-          row.querySelector(".sa-toggle").addEventListener("click", function(){
-            var token = getAdminToken();
-            if (!token) return;
-            var nextLive = !s.live;
-            fetch(API.streamersToggle, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: s.id, live: nextLive, adminToken: token }) })
-              .then(function(res){ if (!res.ok) throw new Error("toggle failed"); loadAdminStreamers(); loadStreamers(); })
-              .catch(function(){ showToast("Couldn't update streamer"); });
-          });
+            '<button type="button" class="sa-toggle" data-live="' + (s.live ? "true" : "false") + '"' + (isKick ? ' disabled title="Automatic (live from Kick)"' : '') + '>' +
+              (isKick ? (s.live ? "Live (auto)" : "Offline (auto)") : (s.live ? "Live" : "Offline")) +
+            '</button>';
+          // Kick streamers are detected automatically (see streamers-list.js)
+          // — the button is a status badge only, not clickable. Any other
+          // platform still supports the old manual toggle as a fallback.
+          if (!isKick) {
+            row.querySelector(".sa-toggle").addEventListener("click", function(){
+              var token = getAdminToken();
+              if (!token) return;
+              var nextLive = !s.live;
+              fetch(API.streamersToggle, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: s.id, live: nextLive, adminToken: token }) })
+                .then(function(res){ if (!res.ok) throw new Error("toggle failed"); loadAdminStreamers(); loadStreamers(); })
+                .catch(function(){ showToast("Couldn't update streamer"); });
+            });
+          }
           asList.appendChild(row);
         });
         if (!data.streamers || !data.streamers.length) asList.innerHTML = '<p class="status-note">No streamers yet — add rows in Supabase → streamers.</p>';
@@ -1483,14 +1498,14 @@
      vars — see README.md.
      ============================================================ */
   var API = {
-    create: "/.netlify/functions/ticket-create",
-    get: "/.netlify/functions/ticket-get",
-    reply: "/.netlify/functions/ticket-reply",
-    close: "/.netlify/functions/ticket-close",
-    adminLogin: "/.netlify/functions/admin-login",
-    adminList: "/.netlify/functions/admin-tickets-list",
-    streamersList: "/.netlify/functions/streamers-list",
-    streamersToggle: "/.netlify/functions/streamers-toggle",
+    create: "/api/ticket-create",
+    get: "/api/ticket-get",
+    reply: "/api/ticket-reply",
+    close: "/api/ticket-close",
+    adminLogin: "/api/admin-login",
+    adminList: "/api/admin-tickets-list",
+    streamersList: "/api/streamers-list",
+    streamersToggle: "/api/streamers-toggle",
   };
 
   function fmtTime(iso){
@@ -1608,6 +1623,7 @@
     var payload = {
       name: data.get("name"),
       discord: data.get("discord"),
+      discordId: data.get("discordId"),
       category: data.get("category"),
       message: data.get("message"),
     };
