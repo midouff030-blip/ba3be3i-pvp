@@ -304,18 +304,44 @@
 
   .ticket-grid{ display:grid; grid-template-columns:0.9fr 1.1fr; gap:56px; align-items:start; }
 
-  .msg{ padding:10px 14px; border:1px solid var(--line); max-width:82%; font-size:0.9rem; line-height:1.5; }
+  .msg{ padding:10px 14px; border:1px solid var(--line); max-width:82%; font-size:0.9rem; line-height:1.5; display:flex; flex-direction:column; gap:6px; }
   .msg.player{ align-self:flex-start; background:var(--surface-1); }
   .msg.admin{ align-self:flex-end; background:var(--surface-3); border-color:var(--green-mid); }
-  .msg .meta{ font-family:"IBM Plex Mono"; font-size:0.65rem; color:var(--muted); margin-bottom:4px; text-transform:uppercase; letter-spacing:0.05em; }
+  .msg .meta{ font-family:"IBM Plex Mono"; font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; display:flex; align-items:center; gap:6px; }
+  .msg-avatar{ width:18px; height:18px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center; font-family:"Anton"; font-size:0.6rem; color:var(--ink); }
+  .msg-body{ word-break:break-word; }
+  .msg-body:empty{ display:none; }
+  .msg-attachment img, .msg-attachment video{ max-width:100%; max-height:260px; border:1px solid var(--line-bright); display:block; margin-top:2px; }
+  .msg.system{ align-self:center; background:none; border:1px dashed var(--line-bright); color:var(--muted); font-family:"IBM Plex Mono"; font-size:0.72rem; text-align:center; max-width:92%; }
 
-  .ticket-row{ display:flex; flex-direction:column; gap:4px; padding:10px 12px; border:1px solid var(--line); cursor:pointer; transition:border-color .15s ease, background .15s ease; background:none; text-align:left; width:100%; font-family:inherit; color:inherit; }
-  .ticket-row:hover{ border-color:var(--green-mid); }
+  .ticket-row{ display:flex; flex-direction:column; gap:4px; padding:10px 12px; border:1px solid var(--line); cursor:pointer; transition:border-color .15s ease, background .15s ease, transform .15s ease; background:none; text-align:left; width:100%; font-family:inherit; color:inherit; }
+  .ticket-row:hover{ border-color:var(--green-mid); transform:translateX(2px); }
   .ticket-row.active{ border-color:var(--green-signal); background:var(--surface-3); }
   .ticket-row .trow-top{ display:flex; justify-content:space-between; gap:8px; font-family:"IBM Plex Mono"; font-size:0.7rem; color:var(--muted); }
   .ticket-row .trow-name{ color:var(--paper); font-size:0.88rem; }
+  .ticket-row .trow-assigned{ font-family:"IBM Plex Mono"; font-size:0.65rem; color:var(--discord); text-transform:uppercase; letter-spacing:0.05em; }
 
   .status-dot.claimed{ background:var(--discord); animation:pulseDot 1.8s ease-in-out infinite; }
+  .assigned-tag{ font-family:"IBM Plex Mono"; font-size:0.7rem; color:var(--discord); text-transform:uppercase; letter-spacing:0.05em; }
+  .reason-note{ font-family:"IBM Plex Mono"; font-size:0.75rem; color:var(--paper-dim); border-left:2px solid var(--green-mid); padding-left:10px; }
+  .close-row{ display:flex; gap:10px; align-items:center; }
+  .close-row input{ flex:1; }
+  .attach-row{ display:flex; align-items:center; gap:8px; }
+  .attach-row .file-btn{ flex:none; }
+  .attach-row .file-name{ font-family:"IBM Plex Mono"; font-size:0.68rem; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:120px; }
+
+  .stream-card.stream-live-anim{ animation:cardPulseIn 0.5s ease; }
+  @keyframes cardPulseIn{ 0%{ box-shadow:0 0 0 0 rgba(60,255,110,0.5);} 100%{ box-shadow:0 0 0 10px rgba(60,255,110,0);} }
+  .nav-links a{ position:relative; }
+  .nav-links a:not(.admin-link)::after{ content:""; position:absolute; left:0; right:100%; bottom:-4px; height:1px; background:var(--green-signal); transition:right 0.2s ease; }
+  .nav-links a:not(.admin-link):hover::after{ right:0; }
+
+  .streamer-admin-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 12px; border:1px solid var(--line); font-family:"IBM Plex Mono"; font-size:0.78rem; }
+  .streamer-admin-row .sa-name{ color:var(--paper); }
+  .streamer-admin-row .sa-plat{ color:var(--muted); font-size:0.68rem; text-transform:uppercase; }
+  .sa-toggle{ font-family:"IBM Plex Mono"; font-size:0.66rem; letter-spacing:0.06em; text-transform:uppercase; padding:4px 10px; border:1px solid var(--line-bright); background:none; color:var(--muted); cursor:pointer; transition:border-color .15s ease, color .15s ease; }
+  .sa-toggle[data-live="true"]{ color:var(--green-signal); border-color:var(--green-mid); }
+  .sa-toggle:hover{ border-color:var(--green-signal); color:var(--green-signal); }
   .ticket-form{ display:flex; flex-direction:column; gap:16px; background:var(--surface-2); border:1px solid var(--line-bright); padding:28px; }
   .form-row{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
   .form-field{ display:flex; flex-direction:column; }
@@ -529,44 +555,9 @@
           <span class="mono" style="font-size:0.75rem; color:var(--muted);" id="liveCount">3 live</span>
         </div>
         <div class="stream-grid" id="streamGrid">
-          <a class="stream-card stagger-item" data-live="true" href="https://twitch.tv/REPLACE_GHOST_TN" target="_blank" rel="noopener">
-            <div class="stream-avatar-wrap" data-live="true"><div class="stream-avatar">G</div></div>
-            <span class="stream-name">Ghost_TN</span>
-            <span class="stream-plat">Twitch · 342 viewers</span>
-            <span class="live-tag on">Live</span>
-          </a>
-          <a class="stream-card stagger-item" data-live="false" href="https://twitch.tv/REPLACE_NOVA_TN" target="_blank" rel="noopener">
-            <div class="stream-avatar-wrap" data-live="false"><div class="stream-avatar">N</div></div>
-            <span class="stream-name">Nova_TN</span>
-            <span class="stream-plat">Offline</span>
-            <span class="live-tag off">Offline</span>
-          </a>
-          <a class="stream-card stagger-item" data-live="true" href="https://kick.com/REPLACE_WOLF_EXE" target="_blank" rel="noopener">
-            <div class="stream-avatar-wrap" data-live="true"><div class="stream-avatar">W</div></div>
-            <span class="stream-name">Wolf.exe</span>
-            <span class="stream-plat">Kick · 128 viewers</span>
-            <span class="live-tag on">Live</span>
-          </a>
-          <a class="stream-card stagger-item" data-live="false" href="https://twitch.tv/REPLACE_RAVEN77" target="_blank" rel="noopener">
-            <div class="stream-avatar-wrap" data-live="false"><div class="stream-avatar">R</div></div>
-            <span class="stream-name">Raven77</span>
-            <span class="stream-plat">Offline</span>
-            <span class="live-tag off">Offline</span>
-          </a>
-          <a class="stream-card stagger-item" data-live="true" href="https://youtube.com/@REPLACE_KOBRA_TN" target="_blank" rel="noopener">
-            <div class="stream-avatar-wrap" data-live="true"><div class="stream-avatar">K</div></div>
-            <span class="stream-name">Kobra_TN</span>
-            <span class="stream-plat">YouTube · 210 viewers</span>
-            <span class="live-tag on">Live</span>
-          </a>
-          <a class="stream-card stagger-item" data-live="false" href="https://twitch.tv/REPLACE_SNIPER404" target="_blank" rel="noopener">
-            <div class="stream-avatar-wrap" data-live="false"><div class="stream-avatar">S</div></div>
-            <span class="stream-name">Sniper404</span>
-            <span class="stream-plat">Offline</span>
-            <span class="live-tag off">Offline</span>
-          </a>
+          <p class="status-note">Loading streamers…</p>
         </div>
-        <p class="status-note">Streamer cards link straight to each channel — swap the placeholder URLs above for the real ones. Live/offline state is set by hand here; ask if you want it pulled automatically from the Twitch/Kick APIs.</p>
+        <p class="status-note">Live/offline is set by hand from the Admin panel — no API keys needed. Edit names, platforms and channel links straight in the <code>streamers</code> table in Supabase.</p>
       </div>
     </div>
   </section>
@@ -814,13 +805,21 @@
       <div class="panel bracket" style="max-width:760px;">
         <div class="panel-head">
           <span class="status-badge" id="mtStatusBadge"><span class="status-dot" id="mtStatusDot"></span> <span id="mtStatusText">Open</span></span>
+          <span class="assigned-tag" id="mtAssigned" hidden></span>
           <button class="btn btn-ghost" id="mtRefresh" type="button">Refresh</button>
         </div>
         <div id="mtThread" style="display:flex; flex-direction:column; gap:12px; max-height:420px; overflow-y:auto; padding-right:4px;"></div>
-        <form id="mtReplyForm" style="display:flex; gap:10px;">
-          <input id="mtReplyInput" type="text" placeholder="Type a message…" style="flex:1;" required>
-          <button class="btn btn-primary" type="submit">Send</button>
+        <form id="mtReplyForm" style="display:flex; flex-direction:column; gap:10px;">
+          <div style="display:flex; gap:10px;">
+            <input id="mtReplyInput" type="text" placeholder="Type a message…" style="flex:1;">
+            <button class="btn btn-primary" type="submit">Send</button>
+          </div>
+          <div class="attach-row">
+            <label class="btn btn-ghost file-btn" style="cursor:pointer;">Attach image/video<input id="mtReplyFile" type="file" accept="image/*,video/*" style="display:none;"></label>
+            <span class="file-name" id="mtReplyFileName"></span>
+          </div>
         </form>
+        <p class="status-note reason-note" id="mtCloseReason" hidden></p>
         <p class="status-note" id="mtClosedNote" hidden>This ticket is closed — replies are disabled. Open a new ticket if you need more help.</p>
       </div>
     </div>
@@ -938,15 +937,37 @@
             <span class="panel-title">Ticket <span id="atId" class="mono">—</span></span>
             <span class="status-badge" id="atStatusBadge"><span class="status-dot" id="atStatusDot"></span> <span id="atStatusText">—</span></span>
           </div>
+          <span class="assigned-tag" id="atAssigned" hidden></span>
           <div id="atThread" style="display:flex; flex-direction:column; gap:12px; max-height:340px; overflow-y:auto; padding-right:4px;">
             <p class="status-note">Pick a ticket from the list.</p>
           </div>
-          <form id="atReplyForm" style="display:none; gap:10px;">
-            <input id="atReplyInput" type="text" placeholder="Reply as staff…" style="flex:1;" required>
-            <button class="btn btn-primary" type="submit">Send</button>
+          <form id="atReplyForm" style="display:none; flex-direction:column; gap:10px;">
+            <div style="display:flex; gap:10px;">
+              <input id="atReplyInput" type="text" placeholder="Reply as staff…" style="flex:1;">
+              <button class="btn btn-primary" type="submit">Send</button>
+            </div>
+            <div class="attach-row">
+              <label class="btn btn-ghost file-btn" style="cursor:pointer;">Attach image/video<input id="atReplyFile" type="file" accept="image/*,video/*" style="display:none;"></label>
+              <span class="file-name" id="atReplyFileName"></span>
+            </div>
           </form>
-          <button class="btn btn-ghost" id="atCloseBtn" type="button" style="display:none;">Close ticket</button>
+          <p class="status-note reason-note" id="atCloseReason" hidden></p>
+          <div class="close-row" id="atCloseRow" style="display:none;">
+            <input id="atCloseReasonInput" type="text" placeholder="Reason for closing (optional)…">
+            <button class="btn btn-ghost" id="atCloseBtn" type="button">Close ticket</button>
+          </div>
         </div>
+      </div>
+
+      <div class="panel bracket" style="--bracket-color:var(--danger); margin-top:20px;">
+        <div class="panel-head">
+          <span class="panel-title">Streamers</span>
+          <button class="btn btn-ghost" id="asRefresh" type="button" style="padding:6px 12px; font-size:0.7rem;">Refresh</button>
+        </div>
+        <div id="asList" style="display:flex; flex-direction:column; gap:8px;">
+          <p class="status-note">Loading streamers…</p>
+        </div>
+        <p class="status-note">Toggling Live posts the change instantly to the public dashboard. Edit names/links/platform in Supabase → Table editor → streamers.</p>
       </div>
     </div>
   </section>
@@ -1021,6 +1042,8 @@
     close: "/.netlify/functions/ticket-close",
     adminLogin: "/.netlify/functions/admin-login",
     adminList: "/.netlify/functions/admin-tickets-list",
+    streamersList: "/.netlify/functions/streamers-list",
+    streamersToggle: "/.netlify/functions/streamers-toggle",
   };
 
   var toast = document.getElementById("toast");
@@ -1280,6 +1303,7 @@
         adminPanel.classList.add("show");
         adminPanel.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth" });
         loadAdminTickets();
+        loadAdminStreamers();
       })
       .catch(function(){ adminError.textContent = "Wrong username or password (or the login function isn't deployed yet)."; adminError.classList.add("show"); });
   });
@@ -1290,12 +1314,54 @@
     document.getElementById("top").scrollIntoView();
   });
 
+  // --- Small helpers: avatar initials + color, and file -> base64 -----
+  var AVATAR_COLORS = ["#3cff6e","#5865f2","#ff5c5c","#ffb84c","#4cc9ff","#c084fc","#ff7ab8"];
+  function initials(name){
+    var n = (name || "?").trim();
+    if (!n) return "?";
+    var parts = n.split(/[\s_.-]+/).filter(Boolean);
+    if (parts.length === 1) return parts[0].slice(0,2).toUpperCase();
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  function colorFromName(name){
+    var n = name || "?";
+    var hash = 0;
+    for (var i=0;i<n.length;i++){ hash = (hash * 31 + n.charCodeAt(i)) | 0; }
+    return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+  }
+
+  var MAX_ATTACHMENT_BYTES = 3.5 * 1024 * 1024;
+  function readFileAsBase64(file){
+    return new Promise(function(resolve, reject){
+      if (!file) { resolve(null); return; }
+      if (file.size > MAX_ATTACHMENT_BYTES) { reject(new Error("File too large (max 3.5MB)")); return; }
+      var reader = new FileReader();
+      reader.onload = function(){
+        var result = reader.result || "";
+        var base64 = result.indexOf(",") >= 0 ? result.split(",")[1] : result;
+        resolve({ base64: base64, type: file.type || "application/octet-stream", name: file.name });
+      };
+      reader.onerror = function(){ reject(new Error("Couldn't read file")); };
+      reader.readAsDataURL(file);
+    });
+  }
+
   // --- Admin ticket list + thread viewer -----------------------------
   var atList = document.getElementById("atList");
   var atThread = document.getElementById("atThread");
   var atReplyForm = document.getElementById("atReplyForm");
   var atCloseBtn = document.getElementById("atCloseBtn");
+  var atCloseRow = document.getElementById("atCloseRow");
+  var atCloseReasonInput = document.getElementById("atCloseReasonInput");
+  var atAssigned = document.getElementById("atAssigned");
+  var atCloseReasonNote = document.getElementById("atCloseReason");
+  var atReplyFile = document.getElementById("atReplyFile");
+  var atReplyFileName = document.getElementById("atReplyFileName");
   var atActiveId = null;
+
+  if (atReplyFile) atReplyFile.addEventListener("change", function(){
+    atReplyFileName.textContent = atReplyFile.files[0] ? atReplyFile.files[0].name : "";
+  });
 
   function loadAdminTickets(){
     var token = getAdminToken();
@@ -1311,7 +1377,8 @@
           row.className = "ticket-row" + (t.id === atActiveId ? " active" : "");
           row.innerHTML =
             '<div class="trow-top"><span>' + t.id + '</span><span>' + statusLabel(t.status) + '</span></div>' +
-            '<div class="trow-name">' + (t.name || "—") + ' — ' + (t.category || "Other") + '</div>';
+            '<div class="trow-name">' + (t.name || "—") + ' — ' + (t.category || "Other") + '</div>' +
+            (t.claimed_by ? '<div class="trow-assigned">Assigned: ' + t.claimed_by + '</div>' : '');
           row.addEventListener("click", function(){ openAdminTicket(t.id); });
           atList.appendChild(row);
         });
@@ -1333,7 +1400,11 @@
         renderThread(atThread, data.messages);
         var closed = data.ticket.status === "closed";
         atReplyForm.style.display = closed ? "none" : "flex";
-        atCloseBtn.style.display = closed ? "none" : "inline-flex";
+        atCloseRow.style.display = closed ? "none" : "flex";
+        if (data.ticket.claimed_by) { atAssigned.hidden = false; atAssigned.textContent = "Assigned: " + data.ticket.claimed_by; }
+        else { atAssigned.hidden = true; }
+        if (closed && data.ticket.close_reason) { atCloseReasonNote.hidden = false; atCloseReasonNote.textContent = "Closed — reason: " + data.ticket.close_reason; }
+        else { atCloseReasonNote.hidden = true; }
       });
   }
 
@@ -1342,25 +1413,61 @@
     var input = document.getElementById("atReplyInput");
     var text = input.value.trim();
     var token = getAdminToken();
-    if (!text || !atActiveId || !token) return;
-    fetch(API.reply, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: atActiveId, body: text, sender: "admin", adminToken: token }) })
-      .then(function(res){ if (!res.ok) throw new Error("reply failed"); input.value = ""; openAdminTicket(atActiveId); })
-      .catch(function(){ showToast("Couldn't send reply"); });
+    var file = atReplyFile && atReplyFile.files[0];
+    if ((!text && !file) || !atActiveId || !token) return;
+    readFileAsBase64(file).then(function(att){
+      var payload = { id: atActiveId, body: text, sender: "admin", adminToken: token };
+      if (att) { payload.attachmentBase64 = att.base64; payload.attachmentType = att.type; payload.attachmentName = att.name; }
+      return fetch(API.reply, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    })
+      .then(function(res){ if (!res.ok) throw new Error("reply failed"); input.value = ""; atReplyFile.value = ""; atReplyFileName.textContent = ""; openAdminTicket(atActiveId); })
+      .catch(function(err){ showToast(err && /File too large/.test(err.message || "") ? err.message : "Couldn't send reply"); });
   });
 
   if (atCloseBtn) atCloseBtn.addEventListener("click", function(){
     var token = getAdminToken();
     if (!atActiveId || !token) return;
-    fetch(API.close, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: atActiveId, adminToken: token }) })
-      .then(function(res){ if (!res.ok) throw new Error("close failed"); showToast("Ticket closed"); openAdminTicket(atActiveId); })
+    var reason = (atCloseReasonInput.value || "").trim();
+    fetch(API.close, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: atActiveId, adminToken: token, reason: reason }) })
+      .then(function(res){ if (!res.ok) throw new Error("close failed"); showToast("Ticket closed"); atCloseReasonInput.value = ""; openAdminTicket(atActiveId); })
       .catch(function(){ showToast("Couldn't close ticket"); });
   });
+
+  // --- Admin streamers manager -----------------------------------------
+  var asList = document.getElementById("asList");
+  var asRefresh = document.getElementById("asRefresh");
+  function loadAdminStreamers(){
+    fetch(API.streamersList)
+      .then(function(res){ if (!res.ok) throw new Error("failed"); return res.json(); })
+      .then(function(data){
+        asList.innerHTML = "";
+        (data.streamers || []).forEach(function(s){
+          var row = document.createElement("div");
+          row.className = "streamer-admin-row";
+          row.innerHTML =
+            '<span class="sa-name">' + s.name + ' <span class="sa-plat">' + s.platform + '</span></span>' +
+            '<button type="button" class="sa-toggle" data-live="' + (s.live ? "true" : "false") + '">' + (s.live ? "Live" : "Offline") + '</button>';
+          row.querySelector(".sa-toggle").addEventListener("click", function(){
+            var token = getAdminToken();
+            if (!token) return;
+            var nextLive = !s.live;
+            fetch(API.streamersToggle, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: s.id, live: nextLive, adminToken: token }) })
+              .then(function(res){ if (!res.ok) throw new Error("toggle failed"); loadAdminStreamers(); loadStreamers(); })
+              .catch(function(){ showToast("Couldn't update streamer"); });
+          });
+          asList.appendChild(row);
+        });
+        if (!data.streamers || !data.streamers.length) asList.innerHTML = '<p class="status-note">No streamers yet — add rows in Supabase → streamers.</p>';
+      })
+      .catch(function(){ asList.innerHTML = '<p class="status-note">Couldn\'t load streamers.</p>'; });
+  }
+  if (asRefresh) asRefresh.addEventListener("click", loadAdminStreamers);
 
   var atRefresh = document.getElementById("atRefresh");
   if (atRefresh) atRefresh.addEventListener("click", loadAdminTickets);
 
   // Resume an existing admin session on page reload (token still valid)
-  if (getAdminToken()) { adminPanel.classList.add("show"); loadAdminTickets(); }
+  if (getAdminToken()) { adminPanel.classList.add("show"); loadAdminTickets(); loadAdminStreamers(); }
 
   /* ============================================================
      REAL ticket system: creates a row in Supabase via Netlify
@@ -1377,6 +1484,8 @@
     close: "/.netlify/functions/ticket-close",
     adminLogin: "/.netlify/functions/admin-login",
     adminList: "/.netlify/functions/admin-tickets-list",
+    streamersList: "/.netlify/functions/streamers-list",
+    streamersToggle: "/.netlify/functions/streamers-toggle",
   };
 
   function fmtTime(iso){
@@ -1397,19 +1506,77 @@
       return;
     }
     messages.forEach(function(m){
+      var name = m.sender_name || (m.sender === "admin" ? "Staff" : "Player");
       var div = document.createElement("div");
       div.className = "msg " + (m.sender === "admin" ? "admin" : "player");
+
       var meta = document.createElement("div");
       meta.className = "meta";
-      meta.textContent = (m.sender_name || (m.sender === "admin" ? "Staff" : "Player")) + " · " + fmtTime(m.created_at);
-      var body = document.createElement("div");
-      body.textContent = m.body;
+      var avatar = document.createElement("span");
+      avatar.className = "msg-avatar";
+      avatar.style.background = colorFromName(name);
+      avatar.textContent = initials(name);
+      meta.appendChild(avatar);
+      meta.appendChild(document.createTextNode(name + " · " + fmtTime(m.created_at)));
       div.appendChild(meta);
-      div.appendChild(body);
+
+      if (m.body) {
+        var body = document.createElement("div");
+        body.className = "msg-body";
+        body.textContent = m.body;
+        div.appendChild(body);
+      }
+
+      if (m.attachment_url) {
+        var wrap = document.createElement("div");
+        wrap.className = "msg-attachment";
+        if ((m.attachment_type || "").indexOf("video/") === 0) {
+          var vid = document.createElement("video");
+          vid.src = m.attachment_url; vid.controls = true;
+          wrap.appendChild(vid);
+        } else {
+          var img = document.createElement("img");
+          img.src = m.attachment_url; img.alt = "Attachment"; img.loading = "lazy";
+          wrap.appendChild(img);
+        }
+        div.appendChild(wrap);
+      }
+
       container.appendChild(div);
     });
     container.scrollTop = container.scrollHeight;
   }
+
+  // --- Public streamers dashboard --------------------------------------
+  var streamGrid = document.getElementById("streamGrid");
+  var liveCountEl = document.getElementById("liveCount");
+  function loadStreamers(){
+    if (!streamGrid) return;
+    fetch(API.streamersList)
+      .then(function(res){ if (!res.ok) throw new Error("failed"); return res.json(); })
+      .then(function(data){
+        var streamers = data.streamers || [];
+        streamGrid.innerHTML = "";
+        var liveN = 0;
+        streamers.forEach(function(s){
+          if (s.live) liveN++;
+          var a = document.createElement("a");
+          a.className = "stream-card stagger-item in";
+          a.setAttribute("data-live", s.live ? "true" : "false");
+          a.href = s.url; a.target = "_blank"; a.rel = "noopener";
+          a.innerHTML =
+            '<div class="stream-avatar-wrap" data-live="' + (s.live ? "true" : "false") + '"><div class="stream-avatar">' + (s.name ? s.name[0].toUpperCase() : "?") + '</div></div>' +
+            '<span class="stream-name">' + s.name + '</span>' +
+            '<span class="stream-plat">' + (s.live ? (s.platform + (s.viewers ? " · " + s.viewers + " viewers" : "")) : "Offline") + '</span>' +
+            '<span class="live-tag ' + (s.live ? "on" : "off") + '">' + (s.live ? "Live" : "Offline") + '</span>';
+          streamGrid.appendChild(a);
+        });
+        if (liveCountEl) liveCountEl.textContent = liveN + " live";
+        if (!streamers.length) streamGrid.innerHTML = '<p class="status-note">No streamers configured yet.</p>';
+      })
+      .catch(function(){ streamGrid.innerHTML = '<p class="status-note">Couldn\'t load streamers right now.</p>'; });
+  }
+  loadStreamers();
 
   // Ticket form: creates a real ticket via Supabase (chat + status),
   // and — if a file was attached — also submits to Netlify Forms so
@@ -1482,6 +1649,12 @@
         var closed = data.ticket.status === "closed";
         mtReplyForm.style.display = closed ? "none" : "flex";
         document.getElementById("mtClosedNote").hidden = !closed;
+        var mtAssigned = document.getElementById("mtAssigned");
+        if (data.ticket.claimed_by) { mtAssigned.hidden = false; mtAssigned.textContent = "Handled by: " + data.ticket.claimed_by; }
+        else { mtAssigned.hidden = true; }
+        var mtCloseReason = document.getElementById("mtCloseReason");
+        if (closed && data.ticket.close_reason) { mtCloseReason.hidden = false; mtCloseReason.textContent = "Closed — reason: " + data.ticket.close_reason; }
+        else { mtCloseReason.hidden = true; }
       })
       .catch(function(){ mtThread.innerHTML = '<p class="status-note">Ticket not found — check the code and try again.</p>'; });
   }
@@ -1504,14 +1677,25 @@
   window.addEventListener("hashchange", handleHash);
   handleHash();
 
+  var mtReplyFile = document.getElementById("mtReplyFile");
+  var mtReplyFileName = document.getElementById("mtReplyFileName");
+  if (mtReplyFile) mtReplyFile.addEventListener("change", function(){
+    mtReplyFileName.textContent = mtReplyFile.files[0] ? mtReplyFile.files[0].name : "";
+  });
+
   if (mtReplyForm) mtReplyForm.addEventListener("submit", function(e){
     e.preventDefault();
     var input = document.getElementById("mtReplyInput");
     var text = input.value.trim();
-    if (!text || !currentTicketId) return;
-    fetch(API.reply, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: currentTicketId, body: text, sender: "player" }) })
-      .then(function(res){ if (!res.ok) throw new Error("reply failed"); input.value = ""; loadPublicTicket(currentTicketId); })
-      .catch(function(){ showToast("Couldn't send — try again"); });
+    var file = mtReplyFile && mtReplyFile.files[0];
+    if ((!text && !file) || !currentTicketId) return;
+    readFileAsBase64(file).then(function(att){
+      var payload = { id: currentTicketId, body: text, sender: "player" };
+      if (att) { payload.attachmentBase64 = att.base64; payload.attachmentType = att.type; payload.attachmentName = att.name; }
+      return fetch(API.reply, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    })
+      .then(function(res){ if (!res.ok) throw new Error("reply failed"); input.value = ""; mtReplyFile.value = ""; mtReplyFileName.textContent = ""; loadPublicTicket(currentTicketId); })
+      .catch(function(err){ showToast(err && /File too large/.test(err.message || "") ? err.message : "Couldn't send — try again"); });
   });
 
   var mtRefresh = document.getElementById("mtRefresh");
