@@ -1,11 +1,7 @@
-// POST { user, pass } -> { token, name } or 401
-// Credentials are checked server-side against ADMIN_ACCOUNTS_JSON (an
-// env var) — never shipped to the browser, unlike the old client-side
-// check. This is a real (if simple) login now.
+const { adapt } = require("../lib/http");
+const { json, getAdminAccounts, makeAdminToken, postDiscord, getDiscordUser } = require("../lib/shared");
 
-const { json, getAdminAccounts, makeAdminToken, postDiscord, getDiscordUser } = require("./lib/shared");
-
-exports.handler = async function (event) {
+async function handler(event) {
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
 
   let data;
@@ -20,9 +16,6 @@ exports.handler = async function (event) {
 
   if (!match) return json(401, { error: "Wrong username or password" });
 
-  // Real Discord name/avatar if this admin has a discordId set + the bot
-  // token is configured — falls back to the plain ADMIN_ACCOUNTS_JSON name
-  // (and colored-initials avatar client-side) otherwise.
   const discordUser = await getDiscordUser(match.discordId);
   const displayName = (discordUser && discordUser.name) || match.name;
   const avatarUrl = discordUser ? discordUser.avatarUrl : null;
@@ -37,4 +30,6 @@ exports.handler = async function (event) {
   });
 
   return json(200, { token, name: displayName, avatarUrl });
-};
+}
+
+module.exports = adapt(handler);
