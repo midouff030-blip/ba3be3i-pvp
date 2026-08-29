@@ -1,12 +1,7 @@
 // GET /api/server-status
 // Queries the FiveM server's OWN dynamic.json endpoint directly
 // (server-side, so the browser never deals with CORS or mixed-content
-// issues). Doesn't depend on Cfx.re's public server list / join code —
-// some servers aren't listed there even when they're online and joinable
-// directly by IP, which is the case here.
-//
-// If the server's address/port ever changes, update SERVER_HOST /
-// SERVER_PORT below and redeploy.
+// issues). Doesn't depend on Cfx.re's public server list / join code.
 
 const { adapt } = require("../lib/http");
 
