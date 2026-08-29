@@ -85,6 +85,41 @@ function verifyAdminToken(token) {
   }
 }
 
+// --- Supabase Storage upload (for chat attachments) --------------------
+// Uploads a base64 file to the "ticket-attachments" bucket (must exist —
+// see supabase-schema.sql) and returns its public URL. The bucket is
+// public, so the URL works directly with no signing. Uses the service
+// key, so this bypasses RLS entirely (safe: only our own functions call
+// this, never the browser directly).
+const MAX_ATTACHMENT_BYTES = 3.5 * 1024 * 1024; // raw file size cap — Netlify Functions cap the whole request around 6MB, and base64 inflates size ~33%
+
+async function uploadAttachment(ticketId, base64Data, contentType, fileName) {
+  if (!SUPABASE_URL || !SUPABASE_KEY) {
+    throw new Error("Supabase is not configured (SUPABASE_URL / SUPABASE_SERVICE_KEY missing)");
+  }
+  const buffer = Buffer.from(base64Data, "base64");
+  if (buffer.length > MAX_ATTACHMENT_BYTES) {
+    throw new Error("Attachment too large (max 3.5MB)");
+  }
+  const safeName = (fileName || "file").replace(/[^a-zA-Z0-9._-]/g, "_").slice(-60);
+  const path = `${ticketId}/${Date.now()}-${safeName}`;
+  const res = await fetch(`${SUPABASE_URL}/storage/v1/object/ticket-attachments/${path}`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      "Content-Type": contentType || "application/octet-stream",
+      "x-upsert": "true",
+    },
+    body: buffer,
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Supabase Storage ${res.status}: ${text}`);
+  }
+  return `${SUPABASE_URL}/storage/v1/object/public/ticket-attachments/${path}`;
+}
+
 // --- Discord webhook (best-effort, never throws) -----------------------
 async function postDiscord(embed) {
   if (!DISCORD_WEBHOOK_URL) return;
@@ -107,5 +142,6 @@ module.exports = {
   makeAdminToken,
   verifyAdminToken,
   postDiscord,
+  uploadAttachment,
   SITE_URL,
 };
