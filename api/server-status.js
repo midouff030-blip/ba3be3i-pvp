@@ -1,23 +1,23 @@
-// GET /api/server-status?code=YOUR_CFX_JOIN_CODE
-// Proxies the FiveM server-list API so the browser never has to deal
-// with CORS.
+// GET /api/server-status
+// Queries the FiveM server's OWN dynamic.json endpoint directly
+// (server-side, so the browser never deals with CORS or mixed-content
+// issues). Doesn't depend on Cfx.re's public server list / join code —
+// some servers aren't listed there even when they're online and joinable
+// directly by IP, which is the case here.
+//
+// If the server's address/port ever changes, update SERVER_HOST /
+// SERVER_PORT below and redeploy.
 
 const { adapt } = require("../lib/http");
 
+const SERVER_HOST = "ba3be3i.ddns.net";
+const SERVER_PORT = "1026";
+
 async function handler(event) {
-  const code = event.queryStringParameters && event.queryStringParameters.code;
-
-  if (!code) {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: "Missing ?code=<your Cfx.re join code>" }),
-    };
-  }
-
   try {
-    const upstream = await fetch(
-      `https://servers-frontend.fivem.net/api/servers/single/${encodeURIComponent(code)}`
-    );
+    const upstream = await fetch(`http://${SERVER_HOST}:${SERVER_PORT}/dynamic.json`, {
+      headers: { "User-Agent": "Mozilla/5.0" },
+    });
 
     if (!upstream.ok) {
       throw new Error(`Upstream responded ${upstream.status}`);
