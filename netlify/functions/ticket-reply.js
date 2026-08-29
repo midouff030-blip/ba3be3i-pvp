@@ -1,8 +1,10 @@
-// POST { id, body, sender: "player" | "admin", adminToken? } -> { ok: true }
+// POST { id, body, sender: "player" | "admin", adminToken?,
+//        attachmentBase64?, attachmentType?, attachmentName? } -> { ok: true }
 // Player replies just need the ticket id (the link is their access).
 // Admin replies must include a valid adminToken from admin-login.
+// A message needs text OR an attachment (or both) — not neither.
 
-const { json, sb, verifyAdminToken, postDiscord } = require("./lib/shared");
+const { json, sb, verifyAdminToken, postDiscord, uploadAttachment } = require("./lib/shared");
 
 exports.handler = async function (event) {
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
@@ -17,8 +19,9 @@ exports.handler = async function (event) {
   const id = data.id;
   const text = (data.body || "").slice(0, 4000);
   const sender = data.sender === "admin" ? "admin" : "player";
+  const hasAttachment = !!(data.attachmentBase64 && data.attachmentType);
 
-  if (!id || !text) return json(400, { error: "Missing id or body" });
+  if (!id || (!text && !hasAttachment)) return json(400, { error: "Missing id, or an empty message with no attachment" });
 
   let senderName = "Player";
 
@@ -35,9 +38,25 @@ exports.handler = async function (event) {
 
     if (sender === "player") senderName = tickets[0].name || "Player";
 
+    let attachmentUrl = null;
+    if (hasAttachment) {
+      try {
+        attachmentUrl = await uploadAttachment(id, data.attachmentBase64, data.attachmentType, data.attachmentName);
+      } catch (err) {
+        return json(502, { error: "Could not upload attachment", detail: String(err) });
+      }
+    }
+
     await sb("ticket_messages", {
       method: "POST",
-      body: JSON.stringify({ ticket_id: id, sender, sender_name: senderName, body: text }),
+      body: JSON.stringify({
+        ticket_id: id,
+        sender,
+        sender_name: senderName,
+        body: text,
+        attachment_url: attachmentUrl,
+        attachment_type: hasAttachment ? data.attachmentType : null,
+      }),
     });
 
     // Claiming happens implicitly on an admin's first reply, if nobody has yet.
@@ -60,7 +79,7 @@ exports.handler = async function (event) {
         fields: [
           { name: "Admin", value: senderName, inline: true },
           { name: "Ticket", value: id, inline: true },
-          { name: "Message", value: text.slice(0, 1000) },
+          { name: "Message", value: text ? text.slice(0, 1000) : (attachmentUrl ? "(attachment)" : "—") },
         ],
         timestamp: new Date().toISOString(),
       });
