@@ -3,7 +3,7 @@
 // env var) — never shipped to the browser, unlike the old client-side
 // check. This is a real (if simple) login now.
 
-const { json, getAdminAccounts, makeAdminToken, postDiscord } = require("./lib/shared");
+const { json, getAdminAccounts, makeAdminToken, postDiscord, getDiscordUser } = require("./lib/shared");
 
 exports.handler = async function (event) {
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
@@ -20,14 +20,21 @@ exports.handler = async function (event) {
 
   if (!match) return json(401, { error: "Wrong username or password" });
 
-  const token = makeAdminToken(match.name);
+  // Real Discord name/avatar if this admin has a discordId set + the bot
+  // token is configured — falls back to the plain ADMIN_ACCOUNTS_JSON name
+  // (and colored-initials avatar client-side) otherwise.
+  const discordUser = await getDiscordUser(match.discordId);
+  const displayName = (discordUser && discordUser.name) || match.name;
+  const avatarUrl = discordUser ? discordUser.avatarUrl : null;
+
+  const token = makeAdminToken(match);
 
   postDiscord({
     title: "🔐 Admin logged in",
     color: 0x5865f2,
-    description: match.name,
+    description: displayName,
     timestamp: new Date().toISOString(),
   });
 
-  return json(200, { token, name: match.name });
+  return json(200, { token, name: displayName, avatarUrl });
 };
