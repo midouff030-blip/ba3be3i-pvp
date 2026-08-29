@@ -309,6 +309,7 @@
   .msg.admin{ align-self:flex-end; background:var(--surface-3); border-color:var(--green-mid); }
   .msg .meta{ font-family:"IBM Plex Mono"; font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; display:flex; align-items:center; gap:6px; }
   .msg-avatar{ width:18px; height:18px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center; font-family:"Anton"; font-size:0.6rem; color:var(--ink); }
+  img.msg-avatar{ object-fit:cover; background:var(--surface-2); }
   .msg-body{ word-break:break-word; }
   .msg-body:empty{ display:none; }
   .msg-attachment img, .msg-attachment video{ max-width:100%; max-height:260px; border:1px solid var(--line-bright); display:block; margin-top:2px; }
@@ -1277,11 +1278,15 @@
 
   function getAdminToken(){ try { return sessionStorage.getItem("adminToken"); } catch(e){ return null; } }
   function getAdminName(){ try { return sessionStorage.getItem("adminName"); } catch(e){ return null; } }
-  function setAdminSession(token, name){
-    try { sessionStorage.setItem("adminToken", token); sessionStorage.setItem("adminName", name); } catch(e){}
+  function setAdminSession(token, name, avatarUrl){
+    try {
+      sessionStorage.setItem("adminToken", token);
+      sessionStorage.setItem("adminName", name);
+      if (avatarUrl) sessionStorage.setItem("adminAvatar", avatarUrl); else sessionStorage.removeItem("adminAvatar");
+    } catch(e){}
   }
   function clearAdminSession(){
-    try { sessionStorage.removeItem("adminToken"); sessionStorage.removeItem("adminName"); } catch(e){}
+    try { sessionStorage.removeItem("adminToken"); sessionStorage.removeItem("adminName"); sessionStorage.removeItem("adminAvatar"); } catch(e){}
   }
 
   function openAdminModal(e){ if (e) e.preventDefault(); adminModal.classList.add("show"); }
@@ -1298,7 +1303,7 @@
     fetch(API.adminLogin, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user: u, pass: p }) })
       .then(function(res){ if (!res.ok) throw new Error("bad creds"); return res.json(); })
       .then(function(data){
-        setAdminSession(data.token, data.name);
+        setAdminSession(data.token, data.name, data.avatarUrl);
         closeAdminModal();
         adminPanel.classList.add("show");
         adminPanel.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth" });
@@ -1512,10 +1517,24 @@
 
       var meta = document.createElement("div");
       meta.className = "meta";
-      var avatar = document.createElement("span");
-      avatar.className = "msg-avatar";
-      avatar.style.background = colorFromName(name);
-      avatar.textContent = initials(name);
+      var avatar;
+      if (m.avatar_url) {
+        // Real Discord avatar (admin messages, when DISCORD_BOT_TOKEN + a
+        // discordId are configured server-side) — falls back to colored
+        // initials below otherwise.
+        avatar = document.createElement("img");
+        avatar.className = "msg-avatar";
+        avatar.src = m.avatar_url;
+        avatar.alt = name;
+        avatar.loading = "lazy";
+        avatar.referrerPolicy = "no-referrer";
+        avatar.onerror = function(){ this.remove(); };
+      } else {
+        avatar = document.createElement("span");
+        avatar.className = "msg-avatar";
+        avatar.style.background = colorFromName(name);
+        avatar.textContent = initials(name);
+      }
       meta.appendChild(avatar);
       meta.appendChild(document.createTextNode(name + " · " + fmtTime(m.created_at)));
       div.appendChild(meta);
