@@ -9,6 +9,8 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;  // the SECRET service_ro
 const ADMIN_TOKEN_SECRET = process.env.ADMIN_TOKEN_SECRET; // any long random string
 const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL;
 const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN; // "Bot" tab of the Discord app — used only to look up a user's real avatar/name by their Discord ID, never posts/joins anything
+const KICK_CLIENT_ID = process.env.KICK_CLIENT_ID;
+const KICK_CLIENT_SECRET = process.env.KICK_CLIENT_SECRET;
 const SITE_URL = process.env.URL || ""; // Netlify sets this automatically at runtime
 
 function json(statusCode, data) {
@@ -175,6 +177,103 @@ async function getDiscordUser(discordId) {
   }
 }
 
+// --- Kick real live-status lookup (App Access Token, no per-streamer
+// login needed) ----------------------------------------------------------
+// Uses Kick's official Dev API (dev.kick.com) with the Client Credentials
+// grant — a "server-to-server" app token that can read ANY channel's public
+// live status without that streamer individually authorizing anything.
+// Docs: https://github.com/KickEngineering/KickDevDocs
+let kickAppToken = null; // { token, expires } — cached across warm invocations
+
+async function getKickAppToken() {
+  if (kickAppToken && kickAppToken.expires > Date.now()) return kickAppToken.token;
+  if (!KICK_CLIENT_ID || !KICK_CLIENT_SECRET) return null; // not configured yet
+
+  try {
+    const res = await fetch("https://id.kick.com/oauth/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "client_credentials",
+        client_id: KICK_CLIENT_ID,
+        client_secret: KICK_CLIENT_SECRET,
+      }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data.access_token) return null;
+    kickAppToken = {
+      token: data.access_token,
+      expires: Date.now() + (Number(data.expires_in || 3600) - 60) * 1000, // refresh a minute early
+    };
+    return kickAppToken.token;
+  } catch (err) {
+    return null;
+  }
+}
+
+// Pulls the channel slug out of a Kick URL, e.g.
+// "https://kick.com/9baya701" -> "9baya701". The `streamers` table stores
+// the full URL (as before); this just reuses it instead of a new column.
+function kickSlugFromUrl(url) {
+  try {
+    const clean = String(url || "").trim().replace(/\/+$/, "");
+    const parts = clean.split("/");
+    return parts[parts.length - 1] || null;
+  } catch (err) {
+    return null;
+  }
+}
+
+const kickStatusCache = new Map(); // slug -> { data, expires }
+const KICK_STATUS_CACHE_MS = 30 * 1000; // 30s — smooths out bursts of page loads
+
+// Looks up live/viewer status for up to 50 Kick slugs in ONE request.
+// Returns { [lowercaseSlug]: { isLive, viewers } }. Best-effort: returns {}
+// (never throws) if KICK_CLIENT_ID/SECRET aren't set or the API call fails,
+// so callers can fall back to whatever's already stored instead of breaking.
+async function getKickChannelsStatus(slugs) {
+  const wanted = Array.from(new Set((slugs || []).filter(Boolean).map((s) => s.toLowerCase())));
+  if (!wanted.length) return {};
+
+  const now = Date.now();
+  const out = {};
+  const toFetch = [];
+  wanted.forEach((slug) => {
+    const cached = kickStatusCache.get(slug);
+    if (cached && cached.expires > now) out[slug] = cached.data;
+    else toFetch.push(slug);
+  });
+  if (!toFetch.length) return out;
+
+  const token = await getKickAppToken();
+  if (!token) return out; // not configured — return whatever was cached (maybe nothing)
+
+  try {
+    const params = new URLSearchParams();
+    toFetch.forEach((s) => params.append("slug", s));
+    const res = await fetch(`https://api.kick.com/public/v1/channels?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return out;
+    const body = await res.json();
+    const rows = (body && body.data) || [];
+    rows.forEach((c) => {
+      if (!c || !c.slug) return;
+      const slug = c.slug.toLowerCase();
+      const data = {
+        isLive: !!(c.stream && c.stream.is_live),
+        viewers: c.stream && c.stream.is_live ? c.stream.viewer_count : null,
+      };
+      kickStatusCache.set(slug, { data, expires: now + KICK_STATUS_CACHE_MS });
+      out[slug] = data;
+    });
+    return out;
+  } catch (err) {
+    return out;
+  }
+}
+
 // --- Discord webhook (best-effort, never throws) -----------------------
 async function postDiscord(embed) {
   if (!DISCORD_WEBHOOK_URL) return;
@@ -199,5 +298,7 @@ module.exports = {
   postDiscord,
   uploadAttachment,
   getDiscordUser,
+  getKickChannelsStatus,
+  kickSlugFromUrl,
   SITE_URL,
 };
