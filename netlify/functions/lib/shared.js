@@ -274,6 +274,45 @@ async function getKickChannelsStatus(slugs) {
   }
 }
 
+// --- Discord DM (bot token) — notifies a player when their ticket closes
+// ------------------------------------------------------------------------
+// Sends a direct message to a Discord user by their ID, using the same
+// Bot Token as getDiscordUser(). IMPORTANT limitation (Discord anti-spam
+// rule, not a bug here): a bot can only DM a user if they share at least
+// one server with the bot — so the bot must actually be INVITED/added as a
+// member of your Discord server (Developer Portal -> OAuth2 -> URL
+// Generator -> check "bot" scope -> open the generated link -> add it to
+// your server), not just have a token. Best-effort: never throws, returns
+// true/false so callers can ignore failures (a closed ticket still closes
+// even if the DM couldn't be sent).
+async function sendDiscordDM(discordId, content) {
+  if (!discordId || !DISCORD_BOT_TOKEN) return false;
+  try {
+    const chRes = await fetch("https://discord.com/api/v10/users/@me/channels", {
+      method: "POST",
+      headers: {
+        Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ recipient_id: discordId }),
+    });
+    if (!chRes.ok) return false;
+    const channel = await chRes.json();
+
+    const msgRes = await fetch(`https://discord.com/api/v10/channels/${channel.id}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ content }),
+    });
+    return msgRes.ok;
+  } catch (err) {
+    return false;
+  }
+}
+
 // --- Discord webhook (best-effort, never throws) -----------------------
 async function postDiscord(embed) {
   if (!DISCORD_WEBHOOK_URL) return;
@@ -298,6 +337,7 @@ module.exports = {
   postDiscord,
   uploadAttachment,
   getDiscordUser,
+  sendDiscordDM,
   getKickChannelsStatus,
   kickSlugFromUrl,
   SITE_URL,
