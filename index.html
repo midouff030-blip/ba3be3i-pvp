@@ -466,7 +466,7 @@
       <h1><span class="glitch" data-text="BA3BE3I">BA3BE3I</span><br><span class="accent glitch" data-text="PVP">PVP</span></h1>
       <p class="hero-lead">No mercy, no pause. War zones, rival factions, maps built for combat — Ba3be3i PVP is Tunisia's most intense GTA V arena.</p>
       <div class="hero-ctas">
-        <a class="btn btn-primary" href="fivem://connect/ba3be3i-pvp.fivem.link">▶ Connect now</a>
+        <a class="btn btn-primary" href="fivem://connect/ba3be3i.ddns.net:1026">▶ Connect now</a>
         <a class="btn btn-ghost" href="https://discord.gg/ba3be3ipvp">Join the Discord</a>
       </div>
       <div class="hud bracket">
@@ -481,7 +481,7 @@
         <div class="hud-cell">
           <div class="hud-label">Server address</div>
           <div class="hud-value">
-            <span class="mono">connect ba3be3i-pvp.fivem.link</span>
+            <span class="mono">connect ba3be3i.ddns.net:1026</span>
             <button class="copy-btn" id="copyIp" type="button">Copy</button>
           </div>
         </div>
@@ -534,12 +534,12 @@
           <div class="status-rows">
             <div class="status-row"><span>Current map / mode</span><b id="dashMap">—</b></div>
             <div class="status-row"><span>Last check</span><b class="tabular" id="dashLastCheck">—</b></div>
-            <div class="status-row"><span>Address</span><b class="mono">ba3be3i-pvp.fivem.link</b></div>
+            <div class="status-row"><span>Address</span><b class="mono">ba3be3i.ddns.net:1026</b></div>
           </div>
 
           <p class="status-note" id="dashNote">Live data comes straight from the FiveM server list API — no fake numbers. Set your server's Cfx.re join code in the script to activate it.</p>
 
-          <a class="btn btn-primary" style="align-self:flex-start;" href="fivem://connect/ba3be3i-pvp.fivem.link">▶ Join now</a>
+          <a class="btn btn-primary" style="align-self:flex-start;" href="fivem://connect/ba3be3i.ddns.net:1026">▶ Join now</a>
         </div>
 
         <div class="panel discord-panel bracket reveal" style="--bracket-color:var(--discord);">
@@ -911,9 +911,9 @@
   <div class="cta-band">
     <p class="eyebrow" style="justify-content:center;">Ready to fight?</p>
     <h2>Connect. The zone is waiting.</h2>
-    <p class="ip-line mono">connect ba3be3i-pvp.fivem.link</p>
+    <p class="ip-line mono">connect ba3be3i.ddns.net:1026</p>
     <div class="hero-ctas">
-      <a class="btn btn-primary" href="fivem://connect/ba3be3i-pvp.fivem.link">▶ Connect now</a>
+      <a class="btn btn-primary" href="fivem://connect/ba3be3i.ddns.net:1026">▶ Connect now</a>
       <a class="btn btn-ghost" href="https://discord.gg/ba3be3ipvp">Join the Discord</a>
     </div>
   </div>
@@ -1088,7 +1088,7 @@
   var copyBtn = document.getElementById("copyIp");
   if (copyBtn) {
     copyBtn.addEventListener("click", function(){
-      var text = "connect ba3be3i-pvp.fivem.link";
+      var text = "connect ba3be3i.ddns.net:1026";
       var done = function(){ showToast("Address copied"); };
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text).then(done, done);
