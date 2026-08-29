@@ -466,8 +466,7 @@
       <h1><span class="glitch" data-text="BA3BE3I">BA3BE3I</span><br><span class="accent glitch" data-text="PVP">PVP</span></h1>
       <p class="hero-lead">No mercy, no pause. War zones, rival factions, maps built for combat — Ba3be3i PVP is Tunisia's most intense GTA V arena.</p>
       <div class="hero-ctas">
-        <a class="btn btn-primary" href="fivem://connect ba3be3i.ddns.net:1026
-">▶ Connect now</a>
+        <a class="btn btn-primary" href="fivem://connect/ba3be3i-pvp.fivem.link">▶ Connect now</a>
         <a class="btn btn-ghost" href="https://discord.gg/ba3be3ipvp">Join the Discord</a>
       </div>
       <div class="hud bracket">
@@ -1179,21 +1178,15 @@
 
   /* ============================================================
      REAL server status — no simulated numbers.
-     1. Set SERVER_JOIN_CODE to your Cfx.re join code (from
-        cfx.re/join/XXXXXX or your txAdmin panel).
-     2. This first tries a same-origin Netlify Function
-        (/api/server-status) included in this
-        project — it avoids any CORS issue and works reliably.
-        Deploy it via the Netlify CLI or a Git-connected site for
-        functions to go live (plain drag-and-drop of the folder in
-        the browser does not reliably deploy the functions folder).
-     3. If the function isn't available it falls back to calling
-        the FiveM endpoint directly from the browser, which may or
-        may not be blocked by CORS depending on the server.
-     4. If both fail, the dashboard honestly shows "Unavailable"
-        instead of making up a number.
+     This calls /api/server-status, a serverless function that
+     queries the FiveM server's OWN dynamic.json endpoint directly
+     (server-side, so no CORS/mixed-content issue). It does not
+     depend on the server being listed on Cfx.re's public server
+     list/join-code lookup — some servers (like this one) aren't
+     publicly listed there, so that approach was swapped out.
+     If the server is unreachable, the dashboard honestly shows
+     "Unavailable" instead of making up a number.
      ============================================================ */
-  var SERVER_JOIN_CODE = "7bbjvyr";
 
   var heroDot = document.getElementById("heroDot");
   var heroStatusText = document.getElementById("heroStatusText");
@@ -1249,29 +1242,18 @@
   }
 
   function parseFivemPayload(data){
-    var info = data && data.Data;
-    if (!info) throw new Error("bad payload");
-    var clients = typeof info.clients === "number" ? info.clients : (info.players ? info.players.length : 0);
-    var maxClients = info.sv_maxclients || (info.vars && info.vars.sv_maxclients) || info.maxclients;
-    var mapLabel = (info.mapname || (info.vars && info.vars.mapname) || "") + (info.gametype ? " — " + info.gametype : "");
+    if (!data) throw new Error("bad payload");
+    var clients = typeof data.clients === "number" ? data.clients : (data.players ? data.players.length : 0);
+    var maxClients = parseInt(data.sv_maxclients, 10) || 0;
+    var mapLabel = (data.mapname || "") + (data.gametype ? " — " + data.gametype : "");
     setOnline(clients, maxClients, mapLabel.trim() || null);
   }
 
   function fetchServerStatus(){
-    if (!SERVER_JOIN_CODE || SERVER_JOIN_CODE.indexOf("REPLACE") === 0) {
-      setUnavailable("Set SERVER_JOIN_CODE in the script to show real status.");
-      return;
-    }
-    fetch("/api/server-status?code=" + encodeURIComponent(SERVER_JOIN_CODE))
+    fetch("/api/server-status")
       .then(function(res){ if (!res.ok) throw new Error("function error"); return res.json(); })
       .then(parseFivemPayload)
-      .catch(function(){
-        // Fallback: try the FiveM endpoint directly from the browser
-        fetch("https://servers-frontend.fivem.net/api/servers/single/" + encodeURIComponent(SERVER_JOIN_CODE))
-          .then(function(res){ if (!res.ok) throw new Error("upstream error"); return res.json(); })
-          .then(parseFivemPayload)
-          .catch(function(){ setUnavailable("Couldn't reach the server list right now — it may be offline, or the request is blocked by the browser. Deploy the included Netlify Function to fix this reliably."); });
-      });
+      .catch(function(){ setUnavailable("Couldn't reach the server right now — it may be offline or restarting."); });
   }
 
   fetchServerStatus();
