@@ -1,9 +1,7 @@
-// POST { name, discord, category, message } -> { id }
-// Creates a ticket + its first message, logs it to Discord.
+const { adapt } = require("../lib/http");
+const { json, sb, genTicketId, postDiscord, SITE_URL } = require("../lib/shared");
 
-const { json, sb, genTicketId, postDiscord, SITE_URL } = require("./lib/shared");
-
-exports.handler = async function (event) {
+async function handler(event) {
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
 
   let body;
@@ -18,10 +16,6 @@ exports.handler = async function (event) {
   const category = (body.category || "Other").slice(0, 60);
   const message = (body.message || "").slice(0, 4000);
 
-  // Optional: a real Discord user ID (snowflake — digits only, 15-25 chars)
-  // so ticket-close.js can DM this player when their ticket is closed.
-  // Free text (like a wrong/old username) is silently ignored rather than
-  // stored, so we never try to DM garbage.
   const rawDiscordId = (body.discordId || "").trim();
   const discordId = /^[0-9]{15,25}$/.test(rawDiscordId) ? rawDiscordId : null;
 
@@ -57,4 +51,6 @@ exports.handler = async function (event) {
   });
 
   return json(200, { id });
-};
+}
+
+module.exports = adapt(handler);
