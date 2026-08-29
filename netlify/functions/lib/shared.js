@@ -37,7 +37,9 @@ async function sb(path, options) {
     throw new Error(`Supabase ${res.status}: ${text}`);
   }
   if (res.status === 204) return null;
-  return res.json();
+  const text = await res.text();
+  if (!text) return null; // Supabase/PostgREST can return 200/201 with an empty body
+  return JSON.parse(text);
 }
 
 // --- Short random ticket id --------------------------------------------
