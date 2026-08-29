@@ -1,12 +1,7 @@
-// POST { id, body, sender: "player" | "admin", adminToken?,
-//        attachmentBase64?, attachmentType?, attachmentName? } -> { ok: true }
-// Player replies just need the ticket id (the link is their access).
-// Admin replies must include a valid adminToken from admin-login.
-// A message needs text OR an attachment (or both) — not neither.
+const { adapt } = require("../lib/http");
+const { json, sb, verifyAdminToken, postDiscord, uploadAttachment, getDiscordUser } = require("../lib/shared");
 
-const { json, sb, verifyAdminToken, postDiscord, uploadAttachment, getDiscordUser } = require("./lib/shared");
-
-exports.handler = async function (event) {
+async function handler(event) {
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
 
   let data;
@@ -29,8 +24,6 @@ exports.handler = async function (event) {
   if (sender === "admin") {
     const session = verifyAdminToken(data.adminToken);
     if (!session) return json(401, { error: "Invalid or expired admin session" });
-    // Real Discord name/avatar (falls back to the ADMIN_ACCOUNTS_JSON name
-    // + client-side colored-initials if no discordId / bot token set).
     const discordUser = await getDiscordUser(session.discordId);
     senderName = (discordUser && discordUser.name) || session.name;
     avatarUrl = discordUser ? discordUser.avatarUrl : null;
@@ -65,7 +58,6 @@ exports.handler = async function (event) {
       }),
     });
 
-    // Claiming happens implicitly on an admin's first reply, if nobody has yet.
     if (sender === "admin" && !tickets[0].claimed_by) {
       await sb(`tickets?id=eq.${encodeURIComponent(id)}`, {
         method: "PATCH",
@@ -95,4 +87,6 @@ exports.handler = async function (event) {
   } catch (err) {
     return json(502, { error: "Could not post reply", detail: String(err) });
   }
-};
+}
+
+module.exports = adapt(handler);
