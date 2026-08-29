@@ -8,6 +8,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL;         // e.g. https://xxxx.supa
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;  // the SECRET service_role key
 const ADMIN_TOKEN_SECRET = process.env.ADMIN_TOKEN_SECRET; // any long random string
 const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL;
+const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN; // "Bot" tab of the Discord app — used only to look up a user's real avatar/name by their Discord ID, never posts/joins anything
 const SITE_URL = process.env.URL || ""; // Netlify sets this automatically at runtime
 
 function json(statusCode, data) {
@@ -62,8 +63,17 @@ function getAdminAccounts() {
 }
 
 // --- Signed admin session token (HMAC, no external deps) --------------
-function makeAdminToken(name) {
-  const payload = JSON.stringify({ name, exp: Date.now() + 8 * 60 * 60 * 1000 }); // 8h
+// `admin` is one entry from ADMIN_ACCOUNTS_JSON: { user, pass, name, discordId }.
+// discordId travels inside the token so every later request (reply, close...)
+// can re-resolve that admin's REAL Discord avatar/name via getDiscordUser()
+// without needing to look ADMIN_ACCOUNTS_JSON up again.
+function makeAdminToken(admin) {
+  const payload = JSON.stringify({
+    user: admin.user,
+    name: admin.name,
+    discordId: admin.discordId || null,
+    exp: Date.now() + 8 * 60 * 60 * 1000, // 8h
+  });
   const b64 = Buffer.from(payload).toString("base64url");
   const sig = crypto.createHmac("sha256", ADMIN_TOKEN_SECRET).update(b64).digest("base64url");
   return `${b64}.${sig}`;
@@ -120,6 +130,51 @@ async function uploadAttachment(ticketId, base64Data, contentType, fileName) {
   return `${SUPABASE_URL}/storage/v1/object/public/ticket-attachments/${path}`;
 }
 
+// --- Discord real user lookup (bot token) — real avatar + real name ----
+// Looks a Discord user up by their ID using a Bot Token (Discord Developer
+// Portal -> your app -> Bot -> Reset Token). This is a lookup only: the
+// bot never joins/posts anywhere, it just reads public profile info
+// (username + avatar) for admins who've put their Discord ID in
+// ADMIN_ACCOUNTS_JSON. Best-effort: if DISCORD_BOT_TOKEN isn't set, or the
+// lookup fails, callers fall back to the plain name/colored-initials
+// avatar — never breaks the actual feature (chat/login) over it.
+const discordUserCache = new Map(); // discordId -> { data, expires }
+const DISCORD_CACHE_MS = 10 * 60 * 1000; // 10 min — avoids hammering Discord's API on every reply
+
+function defaultAvatarUrl(discordId) {
+  try {
+    const idx = Number((BigInt(discordId) >> 22n) % 6n); // Discord's own "no avatar set" formula
+    return `https://cdn.discordapp.com/embed/avatars/${idx}.png`;
+  } catch (err) {
+    return "https://cdn.discordapp.com/embed/avatars/0.png";
+  }
+}
+
+async function getDiscordUser(discordId) {
+  if (!discordId) return null;
+
+  const cached = discordUserCache.get(discordId);
+  if (cached && cached.expires > Date.now()) return cached.data;
+
+  if (!DISCORD_BOT_TOKEN) return null; // not configured yet — caller falls back gracefully
+
+  try {
+    const res = await fetch(`https://discord.com/api/v10/users/${discordId}`, {
+      headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
+    });
+    if (!res.ok) return null;
+    const u = await res.json();
+    const avatarUrl = u.avatar
+      ? `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png?size=128`
+      : defaultAvatarUrl(u.id);
+    const data = { id: u.id, name: u.global_name || u.username, avatarUrl };
+    discordUserCache.set(discordId, { data, expires: Date.now() + DISCORD_CACHE_MS });
+    return data;
+  } catch (err) {
+    return null;
+  }
+}
+
 // --- Discord webhook (best-effort, never throws) -----------------------
 async function postDiscord(embed) {
   if (!DISCORD_WEBHOOK_URL) return;
@@ -143,5 +198,6 @@ module.exports = {
   verifyAdminToken,
   postDiscord,
   uploadAttachment,
+  getDiscordUser,
   SITE_URL,
 };
