@@ -36,8 +36,10 @@ alter table ticket_messages enable row level security;
 -- ============================================================
 
 alter table tickets add column if not exists close_reason text;
+alter table tickets add column if not exists discord_id text; -- player's real Discord ID (optional, from the ticket form) — used to DM them when the ticket closes
 alter table ticket_messages add column if not exists attachment_url text;
 alter table ticket_messages add column if not exists attachment_type text;
+alter table ticket_messages add column if not exists avatar_url text; -- admin's REAL Discord avatar (via Bot Token lookup), null for player messages
 
 -- Storage bucket for chat attachments (images/videos). Public bucket
 -- so the stored URL works directly — uploads still only happen
@@ -58,14 +60,31 @@ create table if not exists streamers (
 );
 alter table streamers enable row level security;
 
--- Seed with the same placeholder streamers already in index.html —
--- edit name/platform/url either here (SQL Editor → Table editor →
--- streamers) or straight from the Admin panel (live/offline only).
+-- ============================================================
+-- Update 2 — run this too: swap the old placeholder streamers for
+-- the real Kick streamers. Live/offline + viewer count are now
+-- detected AUTOMATICALLY from Kick's own API (see streamers-list.js
+-- + KICK_CLIENT_ID/KICK_CLIENT_SECRET in Netlify env vars) — the
+-- `live`/`viewers` values below are just a harmless starting point,
+-- they get overwritten by the real status on every page load.
+-- To rename a streamer or fix their URL later, just edit the row
+-- here (SQL Editor or Table editor → streamers) — no code involved.
+-- ============================================================
+delete from streamers where id in ('ghost_tn','nova_tn','wolf_exe','raven77','kobra_tn','sniper404');
+
 insert into streamers (id, name, platform, url, live, viewers, sort_order) values
-  ('ghost_tn',  'Ghost_TN',  'Twitch',  'https://twitch.tv/REPLACE_GHOST_TN',      true,  342, 1),
-  ('nova_tn',   'Nova_TN',   'Twitch',  'https://twitch.tv/REPLACE_NOVA_TN',       false, null, 2),
-  ('wolf_exe',  'Wolf.exe',  'Kick',    'https://kick.com/REPLACE_WOLF_EXE',       true,  128, 3),
-  ('raven77',   'Raven77',   'Twitch',  'https://twitch.tv/REPLACE_RAVEN77',       false, null, 4),
-  ('kobra_tn',  'Kobra_TN',  'YouTube', 'https://youtube.com/@REPLACE_KOBRA_TN',   true,  210, 5),
-  ('sniper404', 'Sniper404', 'Twitch',  'https://twitch.tv/REPLACE_SNIPER404',     false, null, 6)
-on conflict (id) do nothing;
+  ('9baya701',     '9baya701',     'Kick', 'https://kick.com/9baya701',     false, null, 1),
+  ('xsouzy',       'Xsouzy',       'Kick', 'https://kick.com/xsouzy',       false, null, 2),
+  ('zgougou13',    'Zgougou13',    'Kick', 'https://kick.com/zgougou13',    false, null, 3),
+  ('fusion10',     'Fusion10',     'Kick', 'https://kick.com/fusion10',     false, null, 4),
+  ('tokbri',       'Tokbri',       'Kick', 'https://kick.com/tokbri',       false, null, 5),
+  ('iheb10',       'Iheb10',       'Kick', 'https://kick.com/iheb10',       false, null, 6),
+  ('rafa_lemridh', 'Rafa_lemridh', 'Kick', 'https://kick.com/rafa_lemridh', false, null, 7),
+  ('itspiroli',    'Itspiroli',    'Kick', 'https://kick.com/itspiroli',    false, null, 8),
+  ('deeva_tn',     'Deeva_tn',     'Kick', 'https://kick.com/deeva_tn',     false, null, 9),
+  ('3amrouch11',   '3amrouch11',   'Kick', 'https://kick.com/3amrouch11',   false, null, 10)
+on conflict (id) do update set
+  name = excluded.name,
+  platform = excluded.platform,
+  url = excluded.url,
+  sort_order = excluded.sort_order;

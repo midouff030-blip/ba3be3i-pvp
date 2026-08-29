@@ -230,9 +230,14 @@
   .discord-perklist li::before{ content:"›"; color:var(--green-mid); }
 
   .stream-grid{ display:grid; grid-template-columns:repeat(6,1fr); gap:16px; }
-  .stream-card{ background:var(--surface-2); border:1px solid var(--line); padding:16px 12px; display:flex; flex-direction:column; gap:10px; align-items:center; text-align:center; text-decoration:none; transition:border-color 0.2s ease, transform 0.2s ease; }
-  .stream-card:hover{ border-color:var(--green-mid); transform:translateY(-3px); }
-  .stream-avatar-wrap{ width:64px; height:64px; border-radius:50%; padding:3px; position:relative; }
+  .stream-card{ position:relative; background:var(--surface-2); border:1px solid var(--line); padding:16px 12px; display:flex; flex-direction:column; gap:10px; align-items:center; text-align:center; text-decoration:none; overflow:hidden; transition:border-color 0.2s ease, transform 0.2s ease, box-shadow 0.3s ease; }
+  .stream-card::before{ content:""; position:absolute; inset:0; background:radial-gradient(circle at 50% -10%, rgba(60,255,110,0.16), transparent 65%); opacity:0; transition:opacity 0.3s ease; pointer-events:none; }
+  .stream-card:hover{ border-color:var(--green-mid); transform:translateY(-5px) scale(1.015); box-shadow:0 10px 26px -12px rgba(0,0,0,0.6); }
+  .stream-card[data-live="true"]{ border-color:var(--green-deep); box-shadow:0 0 0 1px rgba(60,255,110,0.12), 0 0 20px -8px rgba(60,255,110,0.45); animation:streamCardGlow 2.8s ease-in-out infinite; }
+  .stream-card[data-live="true"]::before{ opacity:1; }
+  .stream-card[data-live="true"]:hover{ box-shadow:0 0 0 1px rgba(60,255,110,0.3), 0 0 32px -6px rgba(60,255,110,0.65); }
+  @keyframes streamCardGlow{ 0%,100%{ box-shadow:0 0 0 1px rgba(60,255,110,0.1), 0 0 16px -8px rgba(60,255,110,0.35); } 50%{ box-shadow:0 0 0 1px rgba(60,255,110,0.22), 0 0 26px -6px rgba(60,255,110,0.6); } }
+  .stream-avatar-wrap{ width:64px; height:64px; border-radius:50%; padding:3px; position:relative; z-index:1; }
   .stream-avatar-wrap[data-live="true"]{ background:conic-gradient(var(--green-signal), var(--green-deep), var(--green-mid), var(--green-signal)); animation:ringSpin 3.2s linear infinite; }
   .stream-avatar-wrap[data-live="false"]{ background:var(--line); }
   @keyframes ringSpin{ to{ transform:rotate(360deg); } }
@@ -240,10 +245,12 @@
   .stream-card[data-live="false"] .stream-avatar{ filter:grayscale(1); opacity:0.5; }
   .stream-name{ font-family:"IBM Plex Mono"; font-size:0.78rem; color:var(--paper); }
   .stream-plat{ font-family:"IBM Plex Mono"; font-size:0.66rem; letter-spacing:0.08em; color:var(--muted); text-transform:uppercase; }
-  .live-tag{ display:inline-flex; align-items:center; gap:5px; font-family:"IBM Plex Mono"; font-size:0.62rem; letter-spacing:0.08em; text-transform:uppercase; padding:2px 8px; font-weight:700; }
-  .live-tag.on{ background:var(--green-signal); color:var(--ink); }
+  .live-tag{ position:relative; z-index:1; display:inline-flex; align-items:center; gap:5px; font-family:"IBM Plex Mono"; font-size:0.62rem; letter-spacing:0.08em; text-transform:uppercase; padding:2px 8px; font-weight:700; }
+  .live-tag.on{ background:var(--green-signal); color:var(--ink); box-shadow:0 0 12px -1px rgba(60,255,110,0.7); }
   .live-tag.on::before{ content:""; width:5px; height:5px; border-radius:50%; background:var(--ink); animation:pulseDot 1.4s ease-in-out infinite; }
   .live-tag.off{ background:var(--surface-1); color:var(--muted); border:1px solid var(--line); }
+  .stream-name{ position:relative; z-index:1; }
+  .stream-plat{ position:relative; z-index:1; }
   @media (max-width:980px){ .dash-grid{ grid-template-columns:1fr; } .stream-grid{ grid-template-columns:repeat(3,1fr); } }
   @media (max-width:560px){ .stream-grid{ grid-template-columns:repeat(2,1fr); } }
 
@@ -560,7 +567,7 @@
         <div class="stream-grid" id="streamGrid">
           <p class="status-note">Loading streamers…</p>
         </div>
-        <p class="status-note">Live/offline is set by hand from the Admin panel — no API keys needed. Edit names, platforms and channel links straight in the <code>streamers</code> table in Supabase.</p>
+        <p class="status-note">Kick streamers go live/offline automatically. Edit names, platforms and channel links straight in the <code>streamers</code> table in Supabase.</p>
       </div>
     </div>
   </section>
@@ -975,7 +982,7 @@
         <div id="asList" style="display:flex; flex-direction:column; gap:8px;">
           <p class="status-note">Loading streamers…</p>
         </div>
-        <p class="status-note">Toggling Live posts the change instantly to the public dashboard. Edit names/links/platform in Supabase → Table editor → streamers.</p>
+        <p class="status-note">Kick streamers show "Live (auto)" — status is detected automatically, no toggle needed. Non-Kick rows can still be toggled by hand. Edit names/links/platform in Supabase → Table editor → streamers.</p>
       </div>
     </div>
   </section>
