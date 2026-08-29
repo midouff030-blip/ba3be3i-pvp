@@ -18,6 +18,13 @@ exports.handler = async function (event) {
   const category = (body.category || "Other").slice(0, 60);
   const message = (body.message || "").slice(0, 4000);
 
+  // Optional: a real Discord user ID (snowflake — digits only, 15-25 chars)
+  // so ticket-close.js can DM this player when their ticket is closed.
+  // Free text (like a wrong/old username) is silently ignored rather than
+  // stored, so we never try to DM garbage.
+  const rawDiscordId = (body.discordId || "").trim();
+  const discordId = /^[0-9]{15,25}$/.test(rawDiscordId) ? rawDiscordId : null;
+
   if (!name || !message) return json(400, { error: "Missing name or message" });
 
   const id = genTicketId(8);
@@ -25,7 +32,7 @@ exports.handler = async function (event) {
   try {
     await sb("tickets", {
       method: "POST",
-      body: JSON.stringify({ id, name, discord, category, status: "open" }),
+      body: JSON.stringify({ id, name, discord, discord_id: discordId, category, status: "open" }),
     });
     await sb("ticket_messages", {
       method: "POST",
