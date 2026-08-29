@@ -3,7 +3,7 @@
 // ticket (close_reason column) and shown to the player + logged to
 // Discord, so everyone can see why it was closed.
 
-const { json, sb, verifyAdminToken, postDiscord, getDiscordUser } = require("./lib/shared");
+const { json, sb, verifyAdminToken, postDiscord, getDiscordUser, sendDiscordDM, SITE_URL } = require("./lib/shared");
 
 exports.handler = async function (event) {
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
@@ -22,6 +22,11 @@ exports.handler = async function (event) {
   const reason = (data.reason || "").slice(0, 500);
 
   try {
+    // Fetched first (not just for the DM) so we know the player's
+    // discord_id even though the PATCH below doesn't return the row.
+    const tickets = await sb(`tickets?id=eq.${encodeURIComponent(data.id)}&limit=1`);
+    if (!tickets || tickets.length === 0) return json(404, { error: "Ticket not found" });
+
     await sb(`tickets?id=eq.${encodeURIComponent(data.id)}`, {
       method: "PATCH",
       body: JSON.stringify({
@@ -44,6 +49,22 @@ exports.handler = async function (event) {
       ],
       timestamp: new Date().toISOString(),
     });
+
+    // Best-effort DM to the player, only if they gave a valid Discord ID
+    // when opening the ticket. Never blocks/fails the close itself — see
+    // sendDiscordDM's own comment for why this can silently do nothing
+    // (bot not added to a shared server, DMs closed, etc).
+    if (tickets[0].discord_id) {
+      const link = SITE_URL ? `${SITE_URL}/#ticket=${data.id}` : `#ticket=${data.id}`;
+      const lines = [
+        `🔒 **Ticket ${data.id} closed**`,
+        `Reason: ${reason || "No reason given"}`,
+        `View: ${link}`,
+      ];
+      // Awaited (not fire-and-forget): Netlify can freeze/kill the function
+      // right after we respond, which would silently drop an unawaited call.
+      await sendDiscordDM(tickets[0].discord_id, lines.join("\n"));
+    }
 
     return json(200, { ok: true });
   } catch (err) {
