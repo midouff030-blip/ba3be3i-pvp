@@ -3,7 +3,7 @@
 // ticket (close_reason column) and shown to the player + logged to
 // Discord, so everyone can see why it was closed.
 
-const { json, sb, verifyAdminToken, postDiscord } = require("./lib/shared");
+const { json, sb, verifyAdminToken, postDiscord, getDiscordUser } = require("./lib/shared");
 
 exports.handler = async function (event) {
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
@@ -31,11 +31,14 @@ exports.handler = async function (event) {
       }),
     });
 
+    const discordUser = await getDiscordUser(session.discordId);
+    const closedByName = (discordUser && discordUser.name) || session.name;
+
     postDiscord({
       title: "🔒 Ticket closed",
       color: 0x63755c,
       fields: [
-        { name: "Closed by", value: session.name, inline: true },
+        { name: "Closed by", value: closedByName, inline: true },
         { name: "Ticket", value: data.id, inline: true },
         { name: "Reason", value: reason || "—" },
       ],
