@@ -1,9 +1,7 @@
-// GET (header x-admin-token) -> { tickets: [...] }
-// Lists all tickets, newest first. Admin only.
+const { adapt } = require("../lib/http");
+const { json, sb, verifyAdminToken } = require("../lib/shared");
 
-const { json, sb, verifyAdminToken } = require("./lib/shared");
-
-exports.handler = async function (event) {
+async function handler(event) {
   if (event.httpMethod !== "GET") return json(405, { error: "Method not allowed" });
 
   const token = event.headers["x-admin-token"] || event.headers["X-Admin-Token"];
@@ -16,4 +14,6 @@ exports.handler = async function (event) {
   } catch (err) {
     return json(502, { error: "Could not list tickets", detail: String(err) });
   }
-};
+}
+
+module.exports = adapt(handler);
